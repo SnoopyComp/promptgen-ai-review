@@ -12,7 +12,7 @@ PR_BODY_TRIM=$(cat "$WORKDIR/pr_body_trim.txt")
 
 
 {
-    echo "# LLM Review Prompt"
+    echo "# LLM Code Review Prompt"
     echo
 
     echo "## Associated Issue"
@@ -34,8 +34,8 @@ PR_BODY_TRIM=$(cat "$WORKDIR/pr_body_trim.txt")
 
 
     echo "## Reference"
-    if [ -d "$WORKDIR/refs" ] && ls "$WORKDIR/refs"/*.md >/dev/null 2>&1; then
-        cat "$WORKDIR/refs"/*.md
+    if ls "$WORKDIR/refs"/*.txt >/dev/null 2>&1; then
+      cat "$WORKDIR/refs"/*.txt
     else
         echo "_No reference markers found. Add \`reference={path}\` in PR body._"
     fi

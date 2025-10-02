@@ -13,35 +13,22 @@ if [ ! -s "$WORKDIR/refs.txt" ]; then
 fi
 
 
-while IFS= read -r rp; do
-    [ -z "$rp" ] && continue
-    full="$GITHUB_WORKSPACE/$rp"
-    if [ -f "$full" ]; then
-        lang=$(lang_from_ext "$rp")
+while IFS= read -r reference_path; do
+    [ -z "$reference_path" ] && continue
+
+  full_path="$GITHUB_WORKSPACE/$reference_path"
+  output_path="$WORKDIR/refs/$(echo "$reference_path" | tr '/[:space:]:' '__-').txt"
+    if [ -f "$full_path" ]; then
     {
-        echo "### $rp"
-        echo "\`\`\`$lang"
-        python3 - "$MAX_BYTES_REF" "$full" << 'PY'
-import sys, pathlib
-maxb=int(sys.argv[1]); path=pathlib.Path(sys.argv[2])
-data=path.read_bytes()
-if len(data)<=maxb:
-    sys.stdout.buffer.write(data)
-else:
-    sys.stdout.buffer.write(data[:maxb])
-    sys.stdout.write("\n\n[...truncated...]\n")
-PY
-        echo "\`\`\`"
-        echo
-    } > "$WORKDIR/refs/$(echo "$rp" | tr '/[:space:]:' '__-').md"
+      printf 'FILE: %s\n\n' "$reference_path"
+      python3 "$GITHUB_ACTION_PATH/scripts/read_and_trim_file.py" "$MAX_BYTES_REF" "$full_path"
+      printf '\n'
+    } > "$out"
     else
         if [[ "${FAIL_ON_MISSING,,}" == "true" ]]; then
-            die "Reference file not found: $rp"
+        die "Reference file not found: $reference_path"
         else
-            {
-                echo "### $rp (missing)"
-                echo
-            } > "$WORKDIR/refs/$(echo "$rp" | tr '/[:space:]:' '__-').md"
+        printf 'FILE: %s (missing)\n\n' "$reference_path" > "$output_path"
         fi
     fi
 done < "$WORKDIR/refs.txt"
