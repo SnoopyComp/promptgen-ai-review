@@ -23,6 +23,14 @@ inputs:
     description: "Fail the action if any reference file is missing."
     required: false
     default: "false"
+  use-issue:
+    description: "Set false if you don't want issue."
+    required: false
+    default: "true"
+  use-reference:
+    description: "Set ture if you include reference file in pr."
+    required: false
+    default: "true"
 
 outputs:
   prompt:
@@ -92,6 +100,8 @@ runs:
         WORKDIR: ${{ steps.prep.outputs.workdir }}
         OUT: ${{ inputs.output-file }}
         MAX_PR: ${{ inputs.max-bytes-pr }}
+        USE_ISSUE: ${{ inputs.use-issue }}
+        USE_REFERENCE: ${{ inputs.use-reference }}
       run: |
         set -euo pipefail
         mkdir -p "$(dirname "$OUT")"
