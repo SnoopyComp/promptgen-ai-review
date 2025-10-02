@@ -7,21 +7,30 @@ ensure_dir(){ mkdir -p "$1"; }
 
 die(){ echo "[ERROR] $*" >&2; exit 1; }
 
-
-# 바이트 기준 안전 트림 (UTF-8)
 trim_bytes(){
-local max="$1"; shift || true
-python3 - "$max" << 'PY'
+  local max="$1"; shift || true
+  python3 -c '
 import sys
-maxb=int(sys.argv[1])
-data=sys.stdin.buffer.read()
-if len(data)<=maxb:
+
+maxb = int(sys.argv[1])
+data = sys.stdin.buffer.read()
+
+# 1) normalize line endings to LF
+data = data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+
+if len(data) <= maxb:
     sys.stdout.buffer.write(data)
 else:
-    sys.stdout.buffer.write(data[:maxb])
+    # 2) avoid cutting inside a UTF-8 multibyte sequence
+    cut = maxb
+    # backtrack while previous byte is a UTF-8 continuation byte (10xxxxxx)
+    while cut > 0 and (data[cut-1] & 0xC0) == 0x80:
+        cut -= 1
+    sys.stdout.buffer.write(data[:cut])
     sys.stdout.buffer.write(b"\n\n[...truncated...]\n")
-PY
+' "$max"
 }
+
 
 lang_from_ext(){
   local p="$1"; local ext="${p##*.}"; local lang=""
