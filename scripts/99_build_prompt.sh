@@ -6,7 +6,7 @@ source "$GITHUB_ACTION_PATH/scripts/_lib.sh"
 : "${MAX_PR:?MAX_PR required}"
 : "${USE_ISSUE:?USE_ISSUE}"
 : "${USE_REFERENCE:?USE_REFERENCE}"
-: "${REVIEW_INSTRUCTIONS:?REVIEW_INSTRUCTIONS}"
+: "${REVIEW_INSTRUCTIONS:=}"
 
 PR_TITLE=$(cat "$WORKDIR/pr_title.txt")
 PR_NUMBER=$(cat "$WORKDIR/pr_number.txt")
