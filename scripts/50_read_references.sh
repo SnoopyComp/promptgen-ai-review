@@ -23,7 +23,7 @@ while IFS= read -r reference_path; do
       printf 'FILE: %s\n\n' "$reference_path"
       python3 "$GITHUB_ACTION_PATH/scripts/read_and_trim_file.py" "$MAX_BYTES_REF" "$full_path"
       printf '\n'
-    } > "$out"
+    } > "$output_path"
     else
         if [[ "${FAIL_ON_MISSING,,}" == "true" ]]; then
         die "Reference file not found: $reference_path"
