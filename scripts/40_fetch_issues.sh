@@ -2,7 +2,7 @@
 set -euo pipefail
 source "$GITHUB_ACTION_PATH/scripts/_lib.sh"
 : "${WORKDIR:?WORKDIR required}"
-: "${MAX_ISSUE:?MAX_ISSUE required}"
+: "${MAX_BYTES_ISSUE:?MAX_BYTES_ISSUE required}"
 ensure_dir "$WORKDIR/issues"
 
 
@@ -21,7 +21,7 @@ body_raw=$(jq -r '.body // ""' <<< "$issue_json")
 else
 num="$n"; title=""; body_raw=""
 fi
-body_trim=$(printf '%s' "$body_raw" | trim_bytes "$MAX_ISSUE")
+body_trim=$(printf '%s' "$body_raw" | trim_bytes "$MAX_BYTES_ISSUE")
 {
 echo "### #$num — $title"
 [ -n "$body_trim" ] && printf '%s\n' "$body_trim" || echo "_(empty body)_"
