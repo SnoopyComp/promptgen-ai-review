@@ -47,7 +47,6 @@ runs:
         dir="${RUNNER_TEMP}/llm_prompt"
         mkdir -p "$dir"
         echo "workdir=$dir" >> "$GITHUB_OUTPUT"
-        # 다음 스텝들이 쉽게 쓰도록 전역 ENV에도 기록
         echo "WORKDIR=$dir" >> "$GITHUB_ENV"
 
     - name: Read PR from event payload
@@ -74,7 +73,6 @@ runs:
       env:
         WORKDIR: ${{ steps.prep.outputs.workdir }}
         MAX_BYTES_ISSUE: ${{ inputs.max-bytes-issue }}
-        # gh CLI 대비
         GITHUB_TOKEN: ${{ github.token }}
         GH_TOKEN: ${{ github.token }}
       run: bash "$GITHUB_ACTION_PATH/scripts/40_fetch_issues.sh"
@@ -84,24 +82,21 @@ runs:
       env:
         WORKDIR: ${{ steps.prep.outputs.workdir }}
         MAX_BYTES_REF: ${{ inputs.max-bytes-ref }}
-        FAIL_ON_MISSING_REF: ${{ inputs.fail-on-missing-ref }}
+        FAIL_ON_MISSING: ${{ inputs.fail-on-missing-ref }}
       run: bash "$GITHUB_ACTION_PATH/scripts/50_read_references.sh"
 
-    - name: Assemble & finalize outputs
+    - name: Build prompt & finalize outputs
       id: finalize
       shell: bash
       env:
         WORKDIR: ${{ steps.prep.outputs.workdir }}
-        OUTPUT_FILE: ${{ inputs.output-file }}
+        OUT: ${{ inputs.output-file }}
+        MAX_PR: ${{ inputs.max-bytes-pr }}
       run: |
         set -euo pipefail
-        bash "$GITHUB_ACTION_PATH/scripts/60_assemble_prompt.sh"
-        # 60_assemble_prompt.sh 가 $WORKDIR/prompt.md 같은 결과를 만든다고 가정
-        out="${OUTPUT_FILE}"
-        mkdir -p "$(dirname "$out")"
-        cp "$WORKDIR/prompt.md" "$out"
-        echo "prompt-path=$out" >> "$GITHUB_OUTPUT"
-        # prompt 전문이 너무 크면 잘라 쓰거나, 필요 시만 출력
+        mkdir -p "$(dirname "$OUT")"
+        bash "$GITHUB_ACTION_PATH/scripts/99_build_prompt.sh"
+        echo "prompt-path=$OUT" >> "$GITHUB_OUTPUT"
         printf "prompt<<__PROMPT__\n" >> "$GITHUB_OUTPUT"
-        cat "$out" >> "$GITHUB_OUTPUT"
+        cat "$OUT" >> "$GITHUB_OUTPUT"
         printf "\n__PROMPT__\n" >> "$GITHUB_OUTPUT"
