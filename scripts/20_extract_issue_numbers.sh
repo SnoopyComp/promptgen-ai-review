@@ -13,5 +13,5 @@ mapfile -t nums < <(grep -Eio '(close[sd]?|fix(e[sd])?|resolve[sd]?)?[[:space:]]
 
 : > "$WORKDIR/issues.txt"
 for n in "${nums[@]:-}"; do
-    [ -n "$n" ] && echo "$n" >> "$WORKDIR/issues.txt"
+[ -n "$n" ] && echo "$n" >> "$WORKDIR/issues.txt"
 done
