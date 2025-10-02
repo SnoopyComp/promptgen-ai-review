@@ -6,6 +6,7 @@ source "$GITHUB_ACTION_PATH/scripts/_lib.sh"
 : "${MAX_PR:?MAX_PR required}"
 : "${USE_ISSUE:?USE_ISSUE}"
 : "${USE_REFERENCE:?USE_REFERENCE}"
+: "${REVIEW_INSTRUCTIONS:?REVIEW_INSTRUCTIONS}"
 
 PR_TITLE=$(cat "$WORKDIR/pr_title.txt")
 PR_NUMBER=$(cat "$WORKDIR/pr_number.txt")
@@ -14,9 +15,34 @@ PR_BODY_TRIM=$(cat "$WORKDIR/pr_body_trim.txt")
 use_issue="${USE_ISSUE,,}"
 use_ref="${USE_REFERENCE,,}"
 
+scope_line="Use only the PR details included below."
+if [[ "$use_issue" == "true" && "$use_ref" == "true" ]]; then
+  scope_line="Use the PR details, the linked issue(s), and the reference files included below."
+elif [[ "$use_issue" == "true" && "$use_ref" != "true" ]]; then
+  scope_line="Use the PR details and the linked issue(s) included below."
+elif [[ "$use_issue" != "true" && "$use_ref" == "true" ]]; then
+  scope_line="Use the PR details and the reference files included below."
+fi
+
 {
     echo "#LLM Code Review Prompt"
     echo
+
+    # Instructions (always present)
+    echo "## Instructions"
+    cat <<EOF
+You are a senior software engineer acting as a code reviewer.
+Scope: $scope_line
+Focus on correctness, security, performance, readability, edge cases, and test coverage. Prefer minimal, concrete suggestions.
+If a section titled "User Instructions" appears below, you must follow it strictly.
+EOF
+    echo
+
+    # User-provided instructions (optional, must be followed)
+    if [ -n "$REVIEW_INSTRUCTIONS" ]; then
+        echo "### User Instructions"
+        printf '%s\n\n' "$REVIEW_INSTRUCTIONS"
+    fi
 
     # Associated Issue (conditional)
     if [[ "$use_issue" == "true" ]]; then

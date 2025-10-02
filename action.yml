@@ -31,6 +31,10 @@ inputs:
     description: "Set ture if you include reference file in pr."
     required: false
     default: "true"
+  instructions:
+    description: "Additional review instructions to include at the top of the prompt."
+    required: false
+    default: ""
 
 outputs:
   prompt:
@@ -102,6 +106,7 @@ runs:
         MAX_PR: ${{ inputs.max-bytes-pr }}
         USE_ISSUE: ${{ inputs.use-issue }}
         USE_REFERENCE: ${{ inputs.use-reference }}
+        REVIEW_INSTRUCTIONS: ${{ inputs.instructions }}
       run: |
         set -euo pipefail
         mkdir -p "$(dirname "$OUT")"
