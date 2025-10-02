@@ -1,90 +1,107 @@
 name: "LLM Review Prompt Action (Composite Bash)"
 description: "Build a prompt for LLM code review from PR + Issue + reference files using bash scripts"
 author: "you"
-runs:
-using: "composite"
-
 
 inputs:
-output-file:
-description: "Relative path to write the assembled prompt markdown."
-required: false
-default: "llm_review_prompt.md"
-max-bytes-pr:
-description: "Maximum bytes to include from PR body."
-required: false
-default: "100000"
-max-bytes-issue:
-description: "Maximum bytes to include from each Issue body."
-required: false
-default: "80000"
-max-bytes-ref:
-description: "Maximum bytes to include from each Reference file."
-required: false
-default: "120000"
-fail-on-missing-ref:
-description: "Fail the action if any reference file is missing."
-required: false
-default: "false"
-
+  output-file:
+    description: "Relative path to write the assembled prompt markdown."
+    required: false
+    default: "llm_review_prompt.md"
+  max-bytes-pr:
+    description: "Maximum bytes to include from PR body."
+    required: false
+    default: "100000"
+  max-bytes-issue:
+    description: "Maximum bytes to include from each Issue body."
+    required: false
+    default: "80000"
+  max-bytes-ref:
+    description: "Maximum bytes to include from each Reference file."
+    required: false
+    default: "120000"
+  fail-on-missing-ref:
+    description: "Fail the action if any reference file is missing."
+    required: false
+    default: "false"
 
 outputs:
-prompt:
-description: "The assembled prompt text"
-value: ${{ steps.finalize.outputs.prompt }}
-prompt-path:
-description: "Written prompt file path"
-value: ${{ steps.finalize.outputs.prompt-path }}
-
+  prompt:
+    description: "The assembled prompt text"
+    value: ${{ steps.finalize.outputs.prompt }}
+  prompt-path:
+    description: "Written prompt file path"
+    value: ${{ steps.finalize.outputs.prompt-path }}
 
 branding:
-icon: "book-open"
-color: "purple"
+  icon: "book-open"
+  color: "purple"
 
+runs:
+  using: "composite"
+  steps:
+    - name: Prepare workdir
+      id: prep
+      shell: bash
+      run: |
+        set -euo pipefail
+        dir="${RUNNER_TEMP}/llm_prompt"
+        mkdir -p "$dir"
+        echo "workdir=$dir" >> "$GITHUB_OUTPUT"
+        # 다음 스텝들이 쉽게 쓰도록 전역 ENV에도 기록
+        echo "WORKDIR=$dir" >> "$GITHUB_ENV"
 
-steps:
-- name: Prepare workdir
-id: prep
-shell: bash
-run: |
-set -euo pipefail
-echo "workdir=${RUNNER_TEMP}/llm_prompt" >> "$GITHUB_OUTPUT"
+    - name: Read PR from event payload
+      shell: bash
+      env:
+        WORKDIR: ${{ steps.prep.outputs.workdir }}
+        MAX_BYTES_PR: ${{ inputs.max-bytes-pr }}
+      run: bash "$GITHUB_ACTION_PATH/scripts/10_read_pr.sh"
 
+    - name: Extract issue numbers
+      shell: bash
+      env:
+        WORKDIR: ${{ steps.prep.outputs.workdir }}
+      run: bash "$GITHUB_ACTION_PATH/scripts/20_extract_issue_numbers.sh"
 
-- name: Read PR from event payload
-shell: bash
-env:
-WORKDIR: ${{ steps.prep.outputs.workdir }}
-run: |
-set -euo pipefail
-bash "$GITHUB_ACTION_PATH/scripts/10_read_pr.sh"
+    - name: Extract reference paths
+      shell: bash
+      env:
+        WORKDIR: ${{ steps.prep.outputs.workdir }}
+      run: bash "$GITHUB_ACTION_PATH/scripts/30_extract_reference_paths.sh"
 
+    - name: Fetch issues
+      shell: bash
+      env:
+        WORKDIR: ${{ steps.prep.outputs.workdir }}
+        MAX_BYTES_ISSUE: ${{ inputs.max-bytes-issue }}
+        # gh CLI 대비
+        GITHUB_TOKEN: ${{ github.token }}
+        GH_TOKEN: ${{ github.token }}
+      run: bash "$GITHUB_ACTION_PATH/scripts/40_fetch_issues.sh"
 
-- name: Extract issue numbers
-shell: bash
-env:
-WORKDIR: ${{ steps.prep.outputs.workdir }}
-run: |
-set -euo pipefail
-bash "$GITHUB_ACTION_PATH/scripts/20_extract_issue_numbers.sh"
+    - name: Read reference files
+      shell: bash
+      env:
+        WORKDIR: ${{ steps.prep.outputs.workdir }}
+        MAX_BYTES_REF: ${{ inputs.max-bytes-ref }}
+        FAIL_ON_MISSING_REF: ${{ inputs.fail-on-missing-ref }}
+      run: bash "$GITHUB_ACTION_PATH/scripts/50_read_references.sh"
 
-
-- name: Extract reference paths
-shell: bash
-env:
-WORKDIR: ${{ steps.prep.outputs.workdir }}
-run: |
-set -euo pipefail
-bash "$GITHUB_ACTION_PATH/scripts/30_extract_reference_paths.sh"
-
-
-- name: Fetch issues
-shell: bash
-env:
-WORKDIR: ${{ steps.prep.outputs.workdir }}
-MAX_ISSUE: ${{ inputs.max-bytes-issue }}
-GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
-run: |
-set -euo pipefail
-bash "$GITHUB_ACTION_PATH/scripts/40_fetch_issues.sh"
-} >> "$GITHUB_OUTPUT"
+    - name: Assemble & finalize outputs
+      id: finalize
+      shell: bash
+      env:
+        WORKDIR: ${{ steps.prep.outputs.workdir }}
+        OUTPUT_FILE: ${{ inputs.output-file }}
+      run: |
+        set -euo pipefail
+        bash "$GITHUB_ACTION_PATH/scripts/60_assemble_prompt.sh"
+        # 60_assemble_prompt.sh 가 $WORKDIR/prompt.md 같은 결과를 만든다고 가정
+        out="${OUTPUT_FILE}"
+        mkdir -p "$(dirname "$out")"
+        cp "$WORKDIR/prompt.md" "$out"
+        echo "prompt-path=$out" >> "$GITHUB_OUTPUT"
+        # prompt 전문이 너무 크면 잘라 쓰거나, 필요 시만 출력
+        printf "prompt<<__PROMPT__\n" >> "$GITHUB_OUTPUT"
+        cat "$out" >> "$GITHUB_OUTPUT"
+        printf "\n__PROMPT__\n" >> "$GITHUB_OUTPUT"
